@@ -1,0 +1,95 @@
+name: Discord Update Notifier
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/**'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO_NAME: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL secret is not set. Skipping notification."
+            exit 0
+          fi
+          python3 - << 'EOF'
+          import json, os, urllib.request
+          from datetime import datetime, timezone
+
+          webhook_url = os.environ["DISCORD_WEBHOOK_URL"].strip()
+          event_name = os.environ["EVENT_NAME"]
+          repo = os.environ["REPO_NAME"]
+          actor = os.environ["ACTOR"]
+
+          if event_name == "release":
+              tag = os.environ.get("RELEASE_TAG") or "New Release"
+              title = os.environ.get("RELEASE_NAME") or f"{repo} {tag}"
+              desc = (os.environ.get("RELEASE_BODY") or "Đã phát hành phiên bản mới!").strip()[:3500]
+              url = os.environ.get("RELEASE_URL") or f"https://github.com/{repo}/releases"
+              content = "🆕 **Phiên bản mới đã phát hành!** @everyone 🧨"
+              color = 0x2ECC71
+              fields = [
+                  {"name": "👤 Tác giả", "value": actor, "inline": True},
+                  {"name": "📦 Phiên bản", "value": tag, "inline": True},
+                  {"name": "🔗 Tải về", "value": f"[Xem trên GitHub]({url})", "inline": True},
+              ]
+          else:
+              sha = (os.environ.get("COMMIT_SHA") or "")[:7]
+              msg = (os.environ.get("COMMIT_MSG") or "Cập nhật code mới").strip()[:3500]
+              url = os.environ.get("COMMIT_URL") or f"https://github.com/{repo}"
+              title = f"{repo} - Cập nhật mới ({sha})"
+              desc = msg
+              content = "🚀 **Cập nhật mới trên GitHub!**"
+              color = 0x5865F2
+              fields = [
+                  {"name": "👤 Người cập nhật", "value": actor, "inline": True},
+                  {"name": "🔖 Commit", "value": f"`{sha}`", "inline": True},
+              ]
+
+          payload = {
+              "username": "HyBit Store",
+              "content": content,
+              "embeds": [
+                  {
+                      "title": title,
+                      "url": url,
+                      "description": desc,
+                      "color": color,
+                      "fields": fields,
+                      "footer": {"text": f"GitHub • {repo}"},
+                      "timestamp": datetime.now(timezone.utc).isoformat(),
+                  }
+              ],
+          }
+
+          req = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "Mozilla/5.0 GitHub-Actions-Discord-Notifier/1.0",
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              print("Discord response:", resp.status)
+          EOF
