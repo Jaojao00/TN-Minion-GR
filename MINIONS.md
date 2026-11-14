@@ -22,7 +22,7 @@
 - **Thu hoạch thông minh**:
   - Cây `Ageable` (Lúa, Cà rốt, Khoai tây, Củ dền...): Thu hoạch khi chín và tự gieo lại hạt ở cấp độ `0`.
   - Cây ra quả (Bí ngô, Dưa hấu): Chỉ thu hoạch phần **quả**, giữ nguyên thân cây và không thu hạt.
-- **Lưu trữ**: Tự chuyển vào `KhoLuuTru` (nếu bật) hoặc rương liên kết.
+- **Lưu trữ**: Tự chuyển vào [TN-KhoLuuTru](https://github.com/Jaojao00/kholuutru) (nếu bật) hoặc rương liên kết.
 
 ---
 
