@@ -67,7 +67,7 @@ jobs:
               ]
 
           payload = {
-              "username": "HyBit Store",
+              "username": "TeamJaoMC Store",
               "content": content,
               "embeds": [
                   {
