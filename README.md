@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./logo.png" alt="TN-Minion-GR Logo" width="160" />
+
 # ⛏️ TN-Minion-GR
 
 ### Hệ thống Minion tự động thông minh cho server Skyblock / Survival

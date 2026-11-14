@@ -14,6 +14,9 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Send Discord Notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -33,7 +36,7 @@ jobs:
             exit 0
           fi
           python3 - << 'EOF'
-          import json, os, urllib.request
+          import json, os, urllib.request, uuid
           from datetime import datetime, timezone
 
           webhook_url = os.environ["DISCORD_WEBHOOK_URL"].strip()
@@ -66,27 +69,54 @@ jobs:
                   {"name": "🔖 Commit", "value": f"`{sha}`", "inline": True},
               ]
 
+          embed = {
+              "title": title,
+              "url": url,
+              "description": desc,
+              "color": color,
+              "fields": fields,
+              "footer": {"text": f"GitHub • {repo}"},
+              "timestamp": datetime.now(timezone.utc).isoformat(),
+          }
+
+          has_logo = os.path.exists("logo.png")
+          if has_logo:
+              embed["thumbnail"] = {"url": "attachment://logo.png"}
+
           payload = {
               "username": "TeamJaoMC Store",
+              "avatar_url": f"https://raw.githubusercontent.com/{repo}/main/logo.png",
               "content": content,
-              "embeds": [
-                  {
-                      "title": title,
-                      "url": url,
-                      "description": desc,
-                      "color": color,
-                      "fields": fields,
-                      "footer": {"text": f"GitHub • {repo}"},
-                      "timestamp": datetime.now(timezone.utc).isoformat(),
-                  }
-              ],
+              "embeds": [embed],
           }
+
+          if has_logo:
+              boundary = f"----DiscordNotify{uuid.uuid4().hex}"
+              with open("logo.png", "rb") as f:
+                  logo_bytes = f.read()
+              parts = [
+                  f"--{boundary}\r\n".encode("utf-8"),
+                  b'Content-Disposition: form-data; name="payload_json"\r\n\r\n',
+                  json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                  b"\r\n",
+                  f"--{boundary}\r\n".encode("utf-8"),
+                  b'Content-Disposition: form-data; name="files[0]"; filename="logo.png"\r\n',
+                  b"Content-Type: image/png\r\n\r\n",
+                  logo_bytes,
+                  b"\r\n",
+                  f"--{boundary}--\r\n".encode("utf-8"),
+              ]
+              body = b"".join(parts)
+              content_type = f"multipart/form-data; boundary={boundary}"
+          else:
+              body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+              content_type = "application/json; charset=utf-8"
 
           req = urllib.request.Request(
               webhook_url,
-              data=json.dumps(payload).encode("utf-8"),
+              data=body,
               headers={
-                  "Content-Type": "application/json",
+                  "Content-Type": content_type,
                   "User-Agent": "Mozilla/5.0 GitHub-Actions-Discord-Notifier/1.0",
               },
               method="POST",
